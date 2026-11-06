@@ -1,0 +1,26 @@
+[package]
+name = "rdm-engine"
+version = "0.1.0"
+edition = "2021"
+autobins = false
+
+[lib]
+name = "rdm_engine"
+crate-type = ["rlib"]
+
+[[bin]]
+name = "rdm"
+path = "src/main.rs"
+
+[dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "cookies", "rustls-tls"] }
+
+[build-dependencies]
+winres = "0.1"
+
+[target.'cfg(windows)'.dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+serde_json = "1"
+windows-sys = { version = "0.59", features = ["Win32_Graphics_Gdi", "Win32_Storage_FileSystem", "Win32_System_Com", "Win32_System_Console", "Win32_System_LibraryLoader", "Win32_System_Registry", "Win32_UI_Controls", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+rfd = { version = "0.15", default-features = false }
+serde = { version = "1", features = ["derive"] }

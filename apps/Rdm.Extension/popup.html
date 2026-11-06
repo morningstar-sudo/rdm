@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RDM</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <strong>Send to RDM</strong>
+        <span id="connection">Native host</span>
+      </header>
+      <label for="url">HTTP/HTTPS link</label>
+      <input id="url" type="url" autocomplete="url" spellcheck="false" placeholder="https://example.com/file">
+      <button id="submit" type="button">Add to RDM</button>
+      <p id="status" role="status" aria-live="polite">Enter a URL or use the current tab's link.</p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>
