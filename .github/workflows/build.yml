@@ -34,6 +34,7 @@ jobs:
           $bundle = Join-Path $dist 'RDM-Windows-x64'
           New-Item -ItemType Directory -Force -Path $bundle | Out-Null
           Copy-Item 'target\x86_64-pc-windows-msvc\release\rdm.exe' (Join-Path $bundle 'rdm.exe')
+          Copy-Item 'target\x86_64-pc-windows-msvc\release\rdm.exe' (Join-Path $dist 'rdm.exe')
           Copy-Item 'apps\Rdm.Extension' (Join-Path $bundle 'Rdm.Extension') -Recurse
           Copy-Item 'README.md' (Join-Path $bundle 'README.md')
 
@@ -66,8 +67,31 @@ jobs:
         with:
           name: rdm-windows-x64
           path: |
-            target/x86_64-pc-windows-msvc/release/rdm.exe
-            dist/RDM-Windows-x64.zip
-            dist/Rdm-Edge-Extension.zip
+            dist/*
           if-no-files-found: error
           retention-days: 30
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release files
+        uses: actions/download-artifact@v4
+        with:
+          name: rdm-windows-x64
+          path: dist
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: RDM ${{ github.ref_name }}
+          make_latest: true
+          generate_release_notes: true
+          files: |
+            dist/rdm.exe
+            dist/RDM-Windows-x64.zip
+            dist/Rdm-Edge-Extension.zip

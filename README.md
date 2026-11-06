@@ -40,7 +40,7 @@ Run this in PowerShell from the repository root:
 
 The `rdm.exe` executable is created in `target\x86_64-pc-windows-msvc\release`. Starting it normally opens the interface; Chrome/Edge native messaging starts the native host, which launches RDM with the requested URL. The MSVC runtime is statically linked; the app uses Windows system DLLs.
 
-GitHub Actions also builds the Windows executable and publishes downloadable workflow artifacts for the executable, the Edge extension, and a ready-to-unzip app bundle.
+GitHub Actions also builds the Windows executable and publishes downloadable workflow artifacts for the executable, the Edge extension, and a ready-to-unzip app bundle. Push a version tag such as `v1.0.0` to publish those three files as GitHub Release assets; that release is marked latest, so the stable app bundle URL is `https://github.com/morningstar-sudo/rdm/releases/latest/download/RDM-Windows-x64.zip`.
 
 ## Build and test with WSL
 
@@ -78,7 +78,7 @@ The test downloads to a temporary directory, verifies the size, and removes the 
 
 ## Install RDM and the Edge extension
 
-1. Download and extract `RDM-Windows-x64.zip` from the latest successful GitHub Actions run. Keep `Rdm.Extension` beside `rdm.exe`.
+1. Download and extract `RDM-Windows-x64.zip` from the [latest GitHub Release](https://github.com/morningstar-sudo/rdm/releases/latest). The separately packaged `Rdm-Edge-Extension.zip` is also attached to the release. Keep `Rdm.Extension` beside `rdm.exe`.
 2. Start `rdm.exe`. On first launch, RDM registers the `rdm://` protocol and Edge native messaging host for the current Windows user, copies the extension to `%LOCALAPPDATA%\RDM\Rdm.Extension`, and opens Edge's extensions page.
 3. In `edge://extensions`, enable **Developer mode**, choose **Load unpacked**, and select `%LOCALAPPDATA%\RDM\Rdm.Extension`. Edge requires this one-time manual step for unpacked extensions; RDM cannot silently install it.
 4. Approve the `downloads` permission if Edge asks.
