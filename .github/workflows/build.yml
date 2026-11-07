@@ -37,6 +37,7 @@ jobs:
           Copy-Item 'target\x86_64-pc-windows-msvc\release\rdm.exe' (Join-Path $dist 'rdm.exe')
           Copy-Item 'apps\Rdm.Extension' (Join-Path $bundle 'Rdm.Extension') -Recurse
           Copy-Item 'README.md' (Join-Path $bundle 'README.md')
+          Copy-Item 'install.ps1' (Join-Path $bundle 'install.ps1')
 
           $extension = Get-Content 'apps\Rdm.Extension\manifest.json' -Raw | ConvertFrom-Json
           if ($extension.manifest_version -ne 3 -or -not $extension.key) {

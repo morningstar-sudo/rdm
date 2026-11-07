@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "RDM - Download with RDM",
-  "version": "0.3.0",
-  "description": "Send browser downloads and user-selected links to RDM.",
+  "version": "0.4.0",
+  "description": "Send HTTP/HTTPS browser downloads and user-selected links to RDM.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAhzuQwjjPoVq3k4hrDnTNlUVjcxLAf4QZaODISxWz3ZbPviePRCSug331szam6u0031LoPETUTvFp2J5UK6yDWSEFyUA3lWhy/MNrr0ZFwLnKiOiwpQ1ItQRbDs4GrN8ZASy7g62aAAuccQEbbp7n1sku0ILQBziyi+JMux8i6kBG44sl6YaTAg7MOe0d4/83e1bI2NOjvJtc+k1dsEc1o9TBwy4mFfmsZ/SmLNh05USHyZoQYKStfPlNERu32PHmYQUjv/+vskxhovXXBqvoLl52VD8uYQ34Rf3wd1eqrqzkoNzWZL5TenDCYO9q+X1d5Iv+hLMqXyKRTjZeDY4TSwIDAQAB",
-  "permissions": ["activeTab", "contextMenus", "downloads", "nativeMessaging"],
+  "permissions": ["activeTab", "contextMenus", "downloads", "nativeMessaging", "storage"],
   "action": {
     "default_title": "Send link to RDM",
     "default_popup": "popup.html"

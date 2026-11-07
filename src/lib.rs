@@ -1222,6 +1222,76 @@ mod tests {
         (format!("http://{address}/file"), receiver, handle)
     }
 
+    #[test]
+    fn reuses_pooled_connection_for_sequential_ranges() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let (sender, receiver) = mpsc::channel();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let mut requests = Vec::new();
+            for index in 0..2 {
+                let mut request = String::new();
+                loop {
+                    let mut line = String::new();
+                    reader.read_line(&mut line).unwrap();
+                    if line == "\r\n" || line.is_empty() {
+                        break;
+                    }
+                    request.push_str(&line);
+                }
+                requests.push(request);
+                write!(
+                    stream,
+                    "HTTP/1.1 206 Partial Content\r\nContent-Range: bytes {index}-{index}/2\r\nContent-Length: 1\r\nETag: \"stable\"\r\nConnection: keep-alive\r\n\r\n{}",
+                    if index == 0 { "a" } else { "b" }
+                )
+                .unwrap();
+                stream.flush().unwrap();
+            }
+            sender.send(requests).unwrap();
+        });
+
+        let client = Client::builder()
+            .connect_timeout(Duration::from_secs(5))
+            .timeout(Duration::from_secs(5))
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .unwrap();
+        let url = format!("http://{address}/file");
+        let validators = Validators {
+            etag: Some("\"stable\"".to_owned()),
+            last_modified: None,
+        };
+        for index in 0..2 {
+            let mut response = send_range_request(
+                &client,
+                &url,
+                index,
+                index,
+                (index > 0).then_some(&validators),
+            )
+            .unwrap();
+            let mut byte = [0];
+            response.read_exact(&mut byte).unwrap();
+            assert_eq!(byte[0], b'a' + index as u8);
+        }
+
+        server.join().unwrap();
+        let requests = receiver.recv().unwrap();
+        assert_eq!(requests.len(), 2);
+        assert!(requests[0]
+            .to_ascii_lowercase()
+            .contains("range: bytes=0-0"));
+        assert!(requests[1]
+            .to_ascii_lowercase()
+            .contains("range: bytes=1-1"));
+    }
+
     fn temp_destination(test_name: &str) -> PathBuf {
         std::env::temp_dir().join(format!(
             "rdm-{test_name}-{}-{}.bin",

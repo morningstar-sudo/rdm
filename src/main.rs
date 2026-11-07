@@ -1,5 +1,42 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
+const OVERALL_PROGRESS_SCALE: u64 = 10_000;
+const DOWNLOAD_PROGRESS_WEIGHT: u64 = 9_500;
+
+fn overall_progress(
+    downloaded: u64,
+    total: u64,
+    merging: bool,
+    merge_downloaded: u64,
+    merge_total: u64,
+    completed: bool,
+) -> (u64, u64) {
+    if completed {
+        return (OVERALL_PROGRESS_SCALE, OVERALL_PROGRESS_SCALE);
+    }
+    if total == 0 {
+        return (0, OVERALL_PROGRESS_SCALE);
+    }
+
+    let download_progress = u128::from(downloaded.min(total))
+        * u128::from(DOWNLOAD_PROGRESS_WEIGHT)
+        / u128::from(total);
+    let progress = if merging && merge_total > 0 {
+        let merge_weight = OVERALL_PROGRESS_SCALE - DOWNLOAD_PROGRESS_WEIGHT;
+        let merge_progress = u128::from(merge_downloaded.min(merge_total))
+            * u128::from(merge_weight)
+            / u128::from(merge_total);
+        u64::try_from(u128::from(DOWNLOAD_PROGRESS_WEIGHT) + merge_progress)
+            .unwrap_or(OVERALL_PROGRESS_SCALE)
+    } else {
+        u64::try_from(download_progress).unwrap_or(DOWNLOAD_PROGRESS_WEIGHT)
+    };
+    (
+        progress.min(OVERALL_PROGRESS_SCALE - 1),
+        OVERALL_PROGRESS_SCALE,
+    )
+}
+
 #[cfg(windows)]
 mod native_host;
 
@@ -847,7 +884,7 @@ mod windows_app {
                             if index == entry.segment_lanes.len() {
                                 entry.merge_downloaded = downloaded;
                                 entry.merge_total = total;
-                                entry.merging = active;
+                                entry.merging |= active;
                             } else if let Some(lane) = entry.segment_lanes.get_mut(index) {
                                 lane.downloaded = downloaded;
                                 lane.total = total;
@@ -1610,6 +1647,47 @@ mod startup_tests {
     fn rejects_non_http_download_url() {
         assert!(parse_capture_url("file:///C:/private.txt").is_err());
         assert!(parse_capture_url("rdm://download").is_err());
+    }
+}
+
+#[cfg(test)]
+mod overall_progress_tests {
+    use super::*;
+
+    #[test]
+    fn overall_progress_includes_assembly_before_completion() {
+        assert_eq!(
+            overall_progress(50, 100, false, 0, 0, false),
+            (4_750, OVERALL_PROGRESS_SCALE)
+        );
+        assert_eq!(
+            overall_progress(100, 100, false, 0, 0, false),
+            (DOWNLOAD_PROGRESS_WEIGHT, OVERALL_PROGRESS_SCALE)
+        );
+        assert_eq!(
+            overall_progress(100, 100, true, 50, 100, false),
+            (9_750, OVERALL_PROGRESS_SCALE)
+        );
+        assert_eq!(
+            overall_progress(100, 100, true, 100, 100, false),
+            (OVERALL_PROGRESS_SCALE - 1, OVERALL_PROGRESS_SCALE)
+        );
+        assert_eq!(
+            overall_progress(100, 100, false, 0, 0, true),
+            (OVERALL_PROGRESS_SCALE, OVERALL_PROGRESS_SCALE)
+        );
+    }
+
+    #[test]
+    fn unknown_length_downloads_remain_indeterminate_until_complete() {
+        assert_eq!(
+            overall_progress(4096, 0, false, 0, 0, false),
+            (0, OVERALL_PROGRESS_SCALE)
+        );
+        assert_eq!(
+            overall_progress(4096, 0, false, 0, 0, true),
+            (OVERALL_PROGRESS_SCALE, OVERALL_PROGRESS_SCALE)
+        );
     }
 }
 

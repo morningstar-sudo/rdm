@@ -25,10 +25,18 @@ chrome.contextMenus.onClicked.addListener((info) => {
 });
 
 chrome.downloads.onCreated.addListener((item) => {
-  if (item.state !== "in_progress" || !/^https?:\/\//i.test(item.url)) {
+  if (item.state !== "in_progress") {
     return;
   }
-  handoffBrowserDownload(item);
+  const url = getHttpDownloadUrl(item);
+  if (!url) {
+    reportDownloadStatus(
+      "Edge started a browser-only download that RDM cannot fetch. Keep it in Edge.",
+      "!"
+    );
+    return;
+  }
+  handoffBrowserDownload(item, url);
 });
 
 chrome.commands.onCommand.addListener((command) => {
@@ -52,26 +60,38 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return true;
 });
 
-async function handoffBrowserDownload(item) {
+async function handoffBrowserDownload(item, initialUrl) {
   let paused = false;
   try {
     paused = await pauseBrowserDownload(item.id);
     if (!paused) {
+      reportDownloadStatus(
+        `Edge finished "${item.filename}" before RDM could take over.`,
+        "!"
+      );
       return;
     }
-    const response = await sendToRdm(item.finalUrl || item.url, true, item.filename);
+    const [currentItem] = await chrome.downloads.search({ id: item.id });
+    const url = getHttpDownloadUrl(currentItem) || initialUrl;
+    const response = await sendToRdm(url, true, item.filename);
     if (!response.accepted) {
       try {
         await chrome.downloads.resume(item.id);
+        reportDownloadStatus(
+          `Kept "${item.filename}" in Edge.`,
+          "E"
+        );
       } catch (error) {
         console.error(`Could not resume rejected browser download ${item.id}:`, error);
+        reportDownloadStatus(
+          `Could not resume "${item.filename}" in Edge: ${error.message}`,
+          "!"
+        );
       }
       return;
     }
     await chrome.downloads.cancel(item.id);
-    chrome.action.setBadgeText({ text: "RDM" });
-    chrome.action.setBadgeBackgroundColor({ color: "#107c10" });
-    setTimeout(() => chrome.action.setBadgeText({ text: "" }), 2500);
+    reportDownloadStatus(`Sent "${item.filename}" to RDM.`, "RDM", "#107c10");
   } catch (error) {
     console.error(
       `Could not hand off browser download ${item.id}; keeping the browser download active:`,
@@ -82,15 +102,24 @@ async function handoffBrowserDownload(item) {
         await chrome.downloads.resume(item.id);
       } catch (resumeError) {
         console.error(`Could not resume browser download ${item.id}:`, resumeError);
+        reportDownloadStatus(
+          `RDM handoff failed and Edge could not resume "${item.filename}": ${resumeError.message}`,
+          "!"
+        );
       }
     }
-    chrome.action.setBadgeText({ text: "!" });
-    chrome.action.setBadgeBackgroundColor({ color: "#c42b1c" });
-    setTimeout(() => chrome.action.setBadgeText({ text: "" }), 4000);
+    reportDownloadStatus(
+      `Could not send "${item.filename}" to RDM: ${error.message}`,
+      "!"
+    );
   }
 }
 
 async function pauseBrowserDownload(downloadId) {
+  const [item] = await chrome.downloads.search({ id: downloadId });
+  if (!item || item.state !== "in_progress") {
+    return false;
+  }
   try {
     await chrome.downloads.pause(downloadId);
     return true;
@@ -101,6 +130,25 @@ async function pauseBrowserDownload(downloadId) {
     }
     throw error;
   }
+}
+
+function getHttpDownloadUrl(item) {
+  if (!item) {
+    return undefined;
+  }
+  return [item.finalUrl, item.url].find((url) => /^https?:\/\//i.test(url || ""));
+}
+
+function reportDownloadStatus(message, badge, color = "#c42b1c") {
+  chrome.storage.local.set({
+    lastDownloadStatus: {
+      message,
+      timestamp: Date.now()
+    }
+  });
+  chrome.action.setBadgeText({ text: badge });
+  chrome.action.setBadgeBackgroundColor({ color });
+  chrome.action.setTitle({ title: message });
 }
 
 function sendToRdm(url, autoDownload = false, filename) {

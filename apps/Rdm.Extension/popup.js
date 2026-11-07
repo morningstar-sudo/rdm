@@ -1,9 +1,14 @@
 const urlInput = document.querySelector("#url");
 const submitButton = document.querySelector("#submit");
 const statusMessage = document.querySelector("#status");
+const downloadStatus = document.querySelector("#download-status");
 
 document.addEventListener("DOMContentLoaded", async () => {
   try {
+    const { lastDownloadStatus } = await chrome.storage.local.get("lastDownloadStatus");
+    if (lastDownloadStatus?.message) {
+      downloadStatus.textContent = `Last download: ${lastDownloadStatus.message}`;
+    }
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab?.url && /^https?:\/\//i.test(tab.url)) {
       urlInput.value = tab.url;

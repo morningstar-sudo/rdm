@@ -8,7 +8,7 @@ RDM is a Windows HTTP/HTTPS download manager written in Rust. Its interface uses
 - Start a URL immediately without waiting for the queue; the download remains visible in the progress window and can be paused.
 - Check a link with a one-byte range request to inspect its HTTP status, filename, content type, and size without downloading the full file.
 - Pause, resume, or cancel an active download. Temporary data is kept in a uniquely named, URL-hash-scoped folder beside the destination; pausing preserves it, while completion or cancellation removes it without deleting an existing completed destination.
-- Detect server range and validator support automatically. When possible, split larger files into at most 20 work units, about 5% of the original file each. Do not subdivide a work unit further once it is at or below 5% of the file. Start with up to 4 connections; workers take the next work unit as soon as they finish. The scheduler cautiously tests additional connections and keeps them only when measured aggregate throughput improves, backing off and retrying after a cooldown if it does not. The hard limit is 16 connections, not a target.
+- Detect server range and validator support automatically. When possible, split larger files into at most 20 work units, about 5% of the original file each. Do not subdivide a work unit further once it is at or below 5% of the file. Start with up to 4 connections; workers take the next work unit as soon as they finish. A shared HTTP client pools eligible keep-alive connections so sequential work units can reuse them; servers that close connections require a new connection. The scheduler cautiously tests additional connections and keeps them only when measured aggregate throughput improves, backing off and retrying after a cooldown if it does not. The hard limit is 16 connections, not a target.
 - Save the queue and download folder in `%LOCALAPPDATA%\RDM\queue.json`. Active downloads are restored as paused after restart.
 - Use the Windows Known Folder `Downloads` as the default destination, including when the folder has been moved. Legacy default paths are migrated while custom folders are preserved.
 - Choose a folder with the Windows folder picker or enter a path.
@@ -17,14 +17,15 @@ RDM is a Windows HTTP/HTTPS download manager written in Rust. Its interface uses
 - Search and filter the queue by status; retry failed items, remove individual entries, or clear completed downloads.
 - Open the destination folder and copy a download URL from its entry.
 - View the queue in a native Windows report table with separate file, status, and progress columns. The progress window selects downloads from a filename drop-down and shows overall progress plus a segmented activity bar; individual segment rows are hidden. Pause, resume, or cancel the selected download.
+- The overall progress bar reserves its final 5% for assembling downloaded segments, so it reaches 100% only when the finished file is ready.
 - Show each file's cumulative download duration, preserving elapsed time across pauses, resumes, and app restarts.
 - View the smoothed aggregate transfer speed for the active download session in the main window and progress window.
-- The Chrome/Edge extension pauses newly created HTTP/HTTPS downloads and opens an in-app confirmation in RDM. It forwards the filename suggested by the browser so links ending in opaque IDs still display and save with a useful name. The browser download is canceled only after the user selects **Download with RDM**; choosing **Keep in browser** resumes it.
+- The Chrome/Edge extension pauses newly created HTTP/HTTPS downloads and opens an in-app confirmation in RDM. It prefers the browser's final redirect URL and forwards the suggested filename so opaque URLs still display and save with a useful name. The browser download is canceled only after the user selects **Download with RDM**; choosing **Keep in browser** resumes it. The extension status is visible from its toolbar popup. Browser-only `blob:`/`data:` downloads and downloads requiring browser-only authentication cannot be transferred to RDM and remain in Edge.
 - Normal downloads do not require administrator privileges.
 
 The interface uses built-in Win32 Common Controls and follows Windows visual styles on Windows 10 and 11. It is not WinUI 3 and does not provide Windows 11-specific Fluent controls.
 
-The extension detects actual HTTP/HTTPS browser downloads; it does not monitor every visited page. Multi-connection downloads are enabled only when the server supports byte ranges and provides a stable ETag or Last-Modified validator. Work units are saved inside the URL-scoped temporary folder so completed units can be reused after a pause or restart; the folder is removed after the final file is assembled.
+The extension detects actual HTTP/HTTPS downloads reported by the browser; it does not discover every file link on a page or monitor every visited page. Use **Download link with RDM** from the link context menu for a specific direct link. Browser-only `blob:`/`data:` URLs and downloads that require cookies or authorization held only by the browser cannot be fetched independently by RDM. Multi-connection downloads are enabled only when the server supports byte ranges and provides a stable ETag or Last-Modified validator. Work units are saved inside the URL-scoped temporary folder so completed units can be reused after a pause or restart; the folder is removed after the final file is assembled.
 
 ## Build requirements
 
@@ -78,10 +79,11 @@ The test downloads to a temporary directory, verifies the size, and removes the 
 
 ## Install RDM and the Edge extension
 
-1. Download and extract `RDM-Windows-x64.zip` from the [latest GitHub Release](https://github.com/morningstar-sudo/rdm/releases/latest). The separately packaged `Rdm-Edge-Extension.zip` is also attached to the release. Keep `Rdm.Extension` beside `rdm.exe`.
-2. Start `rdm.exe`. On first launch, RDM registers the `rdm://` protocol and Edge native messaging host for the current Windows user, copies the extension to `%LOCALAPPDATA%\RDM\Rdm.Extension`, and opens Edge's extensions page.
-3. In `edge://extensions`, enable **Developer mode**, choose **Load unpacked**, and select `%LOCALAPPDATA%\RDM\Rdm.Extension`. Edge requires this one-time manual step for unpacked extensions; RDM cannot silently install it.
-4. Approve the `downloads` permission if Edge asks.
+1. Download and extract `RDM-Windows-x64.zip` from the [latest GitHub Release](https://github.com/morningstar-sudo/rdm/releases/latest). The separately packaged `Rdm-Edge-Extension.zip` is also attached to the release.
+2. In the extracted folder, run `install.ps1` from PowerShell. It installs the app and extension under `%LOCALAPPDATA%\Programs\RDM`, then starts RDM to register the `rdm://` protocol and Edge native messaging host for the current Windows user. No administrator access is needed. To install without launching, pass `-NoLaunch`; use `-InstallDirectory <path>` to override the default location.
+3. On first launch, RDM copies the extension to `%LOCALAPPDATA%\RDM\Rdm.Extension` and opens Edge's extensions page.
+4. In `edge://extensions`, enable **Developer mode**, choose **Load unpacked**, and select `%LOCALAPPDATA%\RDM\Rdm.Extension`. Edge requires this one-time manual step for unpacked extensions; RDM cannot silently install it.
+5. Approve the `downloads` permission if Edge asks.
 
 The extension ID is pinned in the manifest so its native messaging permission remains stable. RDM registration does not require administrator privileges. The protocol accepts links such as:
 

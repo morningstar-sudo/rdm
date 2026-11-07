@@ -1143,6 +1143,14 @@ unsafe fn refresh_ui(state: &mut UiState) {
             .progress
             .total
             .load(std::sync::atomic::Ordering::Relaxed);
+        let (overall_downloaded, overall_total) = super::super::overall_progress(
+            downloaded,
+            total,
+            entry.merging,
+            entry.merge_downloaded,
+            entry.merge_total,
+            entry.status == "Completed",
+        );
         unsafe {
             set_text(
                 state.progress_window,
@@ -1161,8 +1169,8 @@ unsafe fn refresh_ui(state: &mut UiState) {
             set_progress(
                 state.progress_window,
                 PROGRESS_OVERALL,
-                downloaded,
-                total,
+                overall_downloaded,
+                overall_total,
                 &mut state.rendered_progress_total,
             );
             set_text(
