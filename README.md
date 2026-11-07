@@ -41,7 +41,7 @@ Run this in PowerShell from the repository root:
 
 The `rdm.exe` executable is created in `target\x86_64-pc-windows-msvc\release`. Starting it normally opens the interface; Chrome/Edge native messaging starts the native host, which launches RDM with the requested URL. The MSVC runtime is statically linked; the app uses Windows system DLLs.
 
-GitHub Actions also builds a Windows installer, executable, Edge extension package, and portable app bundle. Push a version tag such as `v1.0.0` to publish them as GitHub Release assets; the release is marked latest.
+GitHub Actions also builds a small Windows installer/updater, executable, Edge extension package, and portable app bundle. Push a version tag such as `v1.0.0` to publish them as GitHub Release assets; the release is marked latest.
 
 ## Build and test with WSL
 
@@ -79,7 +79,7 @@ The test downloads to a temporary directory, verifies the size, and removes the 
 
 ## Install RDM and the Edge extension
 
-1. Download and run `RDM-Setup-x64.exe` from the [latest GitHub Release](https://github.com/morningstar-sudo/rdm/releases/latest). The installer places RDM under `%LOCALAPPDATA%\Programs\RDM`, registers the `rdm://` link protocol and Edge native messaging host for the current user, and creates a Start menu shortcut. It does not need administrator access or PowerShell script execution.
+1. Download and run `RDM-Setup-x64.exe` from the [latest GitHub Release](https://github.com/morningstar-sudo/rdm/releases/latest). Internet access is required: the small installer downloads the latest app bundle from GitHub and verifies its SHA-256 before installing. It installs or updates RDM and its dedicated `rdm-host.exe` under `%LOCALAPPDATA%\Programs\RDM`, registers the `rdm://` link protocol and Edge native messaging host for the current user, and creates a Start menu shortcut. It does not need administrator access or PowerShell script execution. Run the same setup again to update; if Edge reports a native messaging host communication error, update this way and restart Edge.
 2. Leave **Launch RDM and finish Edge setup** selected at the end of installation. On first launch, RDM copies the extension to `%LOCALAPPDATA%\RDM\Rdm.Extension` and opens Edge's extensions page.
 3. In `edge://extensions`, enable **Developer mode**, choose **Load unpacked**, and select `%LOCALAPPDATA%\RDM\Rdm.Extension`. Edge requires this one-time manual step for unpacked extensions; RDM cannot silently install it.
 4. Approve the `downloads` permission if Edge asks.

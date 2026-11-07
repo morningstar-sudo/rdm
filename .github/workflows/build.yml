@@ -34,7 +34,9 @@ jobs:
           $bundle = Join-Path $dist 'RDM-Windows-x64'
           New-Item -ItemType Directory -Force -Path $bundle | Out-Null
           Copy-Item 'target\x86_64-pc-windows-msvc\release\rdm.exe' (Join-Path $bundle 'rdm.exe')
+          Copy-Item 'target\x86_64-pc-windows-msvc\release\rdm.exe' (Join-Path $bundle 'rdm-host.exe')
           Copy-Item 'target\x86_64-pc-windows-msvc\release\rdm.exe' (Join-Path $dist 'rdm.exe')
+          Copy-Item 'target\x86_64-pc-windows-msvc\release\rdm.exe' (Join-Path $dist 'rdm-host.exe')
           Copy-Item 'apps\Rdm.Extension' (Join-Path $bundle 'Rdm.Extension') -Recurse
           Copy-Item 'README.md' (Join-Path $bundle 'README.md')
 
@@ -61,6 +63,12 @@ jobs:
 
           Compress-Archive -Path (Join-Path $bundle '*') -DestinationPath (Join-Path $dist 'RDM-Windows-x64.zip') -Force
           Compress-Archive -Path 'apps\Rdm.Extension\*' -DestinationPath (Join-Path $dist 'Rdm-Edge-Extension.zip') -Force
+          $packageHash = (Get-FileHash 'dist\RDM-Windows-x64.zip' -Algorithm SHA256).Hash.ToLowerInvariant()
+          [System.IO.File]::WriteAllText(
+            (Join-Path $dist 'RDM-Windows-x64.zip.sha256'),
+            "$packageHash  RDM-Windows-x64.zip`n",
+            [System.Text.UTF8Encoding]::new($false)
+          )
           $cargoManifest = Get-Content 'Cargo.toml' -Raw
           $versionMatch = [regex]::Match($cargoManifest, '(?m)^version\s*=\s*"([^"]+)"')
           if (-not $versionMatch.Success) {
@@ -85,6 +93,12 @@ jobs:
           }
           if (-not (Test-Path 'dist\RDM-Setup-x64.exe' -PathType Leaf)) {
             throw 'The Windows installer was not created.'
+          }
+          if (-not (Test-Path 'dist\RDM-Windows-x64.zip.sha256' -PathType Leaf)) {
+            throw 'The latest-package SHA-256 file was not created.'
+          }
+          if (-not (Test-Path 'dist\rdm-host.exe' -PathType Leaf)) {
+            throw 'The dedicated Edge native messaging host was not packaged.'
           }
 
       - name: Upload build artifacts
@@ -119,5 +133,7 @@ jobs:
           files: |
             dist/RDM-Setup-x64.exe
             dist/rdm.exe
+            dist/rdm-host.exe
             dist/RDM-Windows-x64.zip
+            dist/RDM-Windows-x64.zip.sha256
             dist/Rdm-Edge-Extension.zip

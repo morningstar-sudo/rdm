@@ -74,6 +74,7 @@ mod windows_app {
 
     const BROWSER_DOWNLOAD_COPYDATA_ID: usize = 0x5244_4D42;
     const EDGE_EXTENSION_ID: &str = "agdholmngaiajkafecfkonjoijmnjfic";
+    const NATIVE_HOST_EXECUTABLE: &str = "rdm-host.exe";
     const NATIVE_HOST_NAME: &str = "com.rdm.download";
 
     pub fn setup_first_run() -> Result<(), String> {
@@ -115,10 +116,16 @@ mod windows_app {
         copy_extension_directory(&bundled_extension, &installed_extension)?;
 
         let host_manifest_path = app_data.join("com.rdm.download.json");
+        let host_executable = executable_directory.join(NATIVE_HOST_EXECUTABLE);
+        let host_executable = if host_executable.is_file() {
+            host_executable
+        } else {
+            executable.clone()
+        };
         let host_manifest = serde_json::json!({
             "name": NATIVE_HOST_NAME,
             "description": "RDM browser URL handoff",
-            "path": executable_text.as_ref(),
+            "path": host_executable.to_string_lossy(),
             "type": "stdio",
             "allowed_origins": [format!("chrome-extension://{EDGE_EXTENSION_ID}/")],
         });
@@ -1515,11 +1522,19 @@ mod windows_app {
 
 #[cfg(windows)]
 fn main() {
-    if is_native_messaging_process() {
+    if is_native_host_executable() || is_native_messaging_process() {
         if let Err(error) = native_host::run() {
             eprintln!("RDM native messaging error: {error}");
         }
         return;
+    }
+
+    #[cfg(windows)]
+    fn is_native_host_executable() -> bool {
+        std::env::current_exe()
+            .ok()
+            .and_then(|path| path.file_name().map(|name| name.to_owned()))
+            .is_some_and(|name| name.to_string_lossy().eq_ignore_ascii_case("rdm-host.exe"))
     }
 
     if let Err(error) = windows_app::setup_first_run() {

@@ -6,7 +6,14 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     use std::process::{Command, Stdio};
 
     const MAX_MESSAGE_LENGTH: usize = 1024 * 1024;
-    let executable = std::env::current_exe()?;
+    let executable = app_executable_path(std::env::current_exe()?);
+    if !executable.is_file() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("RDM executable not found: {}", executable.display()),
+        )
+        .into());
+    }
     let mut input = std::io::stdin().lock();
     let mut output = std::io::stdout().lock();
 
@@ -73,6 +80,21 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             .spawn()?;
 
         write_response(&mut output, true)?;
+    }
+}
+
+#[cfg(windows)]
+fn app_executable_path(host_executable: std::path::PathBuf) -> std::path::PathBuf {
+    let is_dedicated_host = host_executable
+        .file_name()
+        .is_some_and(|name| name.to_string_lossy().eq_ignore_ascii_case("rdm-host.exe"));
+    if is_dedicated_host {
+        host_executable
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new(""))
+            .join("rdm.exe")
+    } else {
+        host_executable
     }
 }
 
